@@ -1,0 +1,13 @@
+{
+  "mode": "local",
+  "local_base": "/path/to/your/agent_deploy_kit",
+  "ssh": {
+    "host": "",
+    "user": "",
+    "password": "",
+    "key_file": "",
+    "remote_base": "/path/to/remote/agent_deploy_kit"
+  },
+  "monitor_url": "http://127.0.0.1:8080",
+  "_note": "mode=local 直读 local_base 下的 state/日志；mode=ssh 通过 ssh.* 拉取 remote_base 的实时状态。所有工具只读，绝不写文件/杀进程/改力场。复制本文件为 md_config.json 后填入你的路径。"
+}

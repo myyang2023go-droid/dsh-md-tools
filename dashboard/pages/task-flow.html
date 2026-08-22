@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>任务全流程 · 从上传文献到模拟运行</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#f5f6f7; color:#353638; font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif; padding:28px 20px 60px; }
+  .wrap { max-width:1080px; margin:0 auto; }
+  h1 { font-size:22px; color:#0f1115; margin-bottom:4px; }
+  h1 .tag { font-size:12px; color:#22c55e; border:1px solid #bbe9c9; border-radius:4px; padding:2px 8px; margin-left:10px; vertical-align:middle; font-weight:normal; }
+  .sub { color:#81868c; font-size:13px; margin-bottom:30px; }
+
+  .phase { display:flex; gap:18px; margin-bottom:6px; }
+  .rail { display:flex; flex-direction:column; align-items:center; flex-shrink:0; width:44px; }
+  .rail .dot { width:34px; height:34px; border-radius:50%; background:#4176e6; color:#f5f6f7; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; }
+  .rail .line { width:2px; flex:1; background:#e1e5ee; margin:4px 0; min-height:14px; }
+  .phase:last-child .rail .line { display:none; }
+  .phase.green .dot { background:#22c55e; } .phase.orange .dot { background:#f59e0b; }
+  .phase.red .dot { background:#ef4444; } .phase.purple .dot { background:#8b5cf6; }
+
+  .body { flex:1; background:#ffffff; border:1px solid #e1e5ee; border-radius:8px; padding:14px 18px; margin-bottom:14px; }
+  .body h2 { font-size:15px; color:#0f1115; margin-bottom:3px; }
+  .body h2 .who { font-size:11.5px; font-weight:normal; color:#81868c; margin-left:8px; }
+  .body .detail { font-size:12.5px; color:#43454a; line-height:1.9; margin-top:6px; }
+  .body .detail b { color:#353638; }
+  .code { font-family:Consolas,monospace; font-size:11.5px; color:#4176e6; background:#eef2fb; padding:0 5px; border-radius:3px; }
+  .gate { margin-top:9px; font-size:12px; border-left:3px solid #f59e0b; background:#fef5e7; padding:7px 12px; border-radius:0 6px 6px 0; color:#dd8629; }
+  .gate.blue { border-color:#4176e6; background:#eff6ff; color:#4176e6; }
+  .gate.green { border-color:#22c55e; background:#e6faed; color:#22c55e; }
+  .gate.red { border-color:#ef4444; background:#fef2f2; color:#ef4444; }
+  .tools { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+  .tools span { font-family:Consolas,monospace; font-size:11px; background:#eef2fb; border:1px solid #c9d9f7; border-radius:4px; padding:1px 7px; color:#4176e6; }
+
+  .branch { margin:2px 0 14px 62px; background:#f7f8fa; border:1px dashed #d5dae3; border-radius:8px; padding:12px 16px; font-size:12.5px; color:#43454a; line-height:1.9; }
+  .branch b { color:#f59e0b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>任务全流程 <span class="tag">从上传文献到模拟运行 · Mode B + 相位串联</span></h1>
+  <div class="sub">dsh 承担 orchestrator 的判断角色:每步真读返回、合格才进下一步 · 高危动作一律先讲后果等确认 · 长任务后台+持续盯</div>
+
+  <!-- 0 -->
+  <div class="phase purple">
+    <div class="rail"><div class="dot">0</div><div class="line"></div></div>
+    <div class="body">
+      <h2>上传文献<span class="who">用户动作</span></h2>
+      <div class="detail">用户把 PDF/txt/md/docx 丢进对话(或给路径),说一句"解读一下 / 按这篇建模 / 出动力学方案"。</div>
+      <div class="tools"><span>dsh-files 上传</span><span>或直接给 case 路径</span></div>
+    </div>
+  </div>
+
+  <!-- 1 -->
+  <div class="phase purple">
+    <div class="rail"><div class="dot">1</div><div class="line"></div></div>
+    <div class="body">
+      <h2>读文献 · 抓四样<span class="who">read_paper</span></h2>
+      <div class="detail">抓<b>研究体系 / 目标性质 / 已报道方法 / 关键数值</b>,引用标原文出处。然后<b>确认意图</b>:复现还是改进?关注哪个性质/工况?有实质歧义先问清,不臆测。</div>
+      <div class="tools"><span>mcp__mdsim__read_paper</span></div>
+      <div class="gate blue">意图确认门:复现 vs 改进、目标性质、工况 —— 用户答清才往下走</div>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="phase purple">
+    <div class="rail"><div class="dot">2</div><div class="line"></div></div>
+    <div class="body">
+      <h2>蜂群拆解 · 四面子代理并行<span class="who">subagent 只读只推理,绝不执行</span></h2>
+      <div class="detail">
+        <b>结构建模面</b>:构型/组分/密度目标/端基,预防 close contacts &lt;0.8Å ·
+        <b>力场面</b>:ffield 元素覆盖 C/H/O/N/P/Si、QEq 中性 ·
+        <b>动力学面</b>:minimize→NVT/Langevin 预平衡→NPT 生产;ReaxFF timestep 0.1–0.25 fs;对齐现有 case 口径 ·
+        <b>分析面</b>:密度/RDF/键/模量,对应 cp_calculator / frame_extractor / analyze_agent
+      </div>
+      <div class="tools"><span>subagent × 4</span><span>web_search_pro / web_fetch_pro 辅助</span></div>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="phase purple">
+    <div class="rail"><div class="dot">3</div><div class="line"></div></div>
+    <div class="body">
+      <h2>综合输出方案<span class="who">建模思路 + 动力学思路</span></h2>
+      <div class="detail">能给到 <span class="code">production.in</span> 参数骨架,明标<b>"方案骨架非最终输入"</b>;文献数值标出处;方案对齐本系统已有 case 并注明差异。</div>
+      <div class="gate">用户拍板门(红线 7):改化学模型/力场 = 科研方向级决策,dsh 出带证据的建议书,绝不自己开跑</div>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="phase green">
+    <div class="rail"><div class="dot">4</div><div class="line"></div></div>
+    <div class="body">
+      <h2>建盒建模<span class="who">packmol 经审计通道</span></h2>
+      <div class="detail">用户确认后,经 <span class="code">sim_exec</span> 逐步落地:packmol 装盒 → 生成 data 文件。每步 description 写清目的,进审计日志。</div>
+      <div class="tools"><span>mcp__mdsim__sim_exec</span><span>packmol</span></div>
+    </div>
+  </div>
+
+  <!-- 5 -->
+  <div class="phase green">
+    <div class="rail"><div class="dot">5</div><div class="line"></div></div>
+    <div class="body">
+      <h2>PREFLIGHT 预检<span class="who">专科手 #1 · 不合格先修</span></h2>
+      <div class="detail"><span class="code">preflight_agent.py</span> 扫近接触/缺陷 → {issues, fixes_applied, pass};<span class="code">preflight_agent_v2.py</span> 查元素组成+力场匹配 → {missing_elements, pass}。<b>缺元素先进 REBUILD 分支</b>。</div>
+      <div class="tools"><span>python3 preflight_agent.py input.json result.json</span><span>必须真读 result.json</span></div>
+      <div class="gate red">pass=false → 停下讲清 issues,修复或重建,绝不带病进 LAUNCH</div>
+    </div>
+  </div>
+
+  <!-- 6 -->
+  <div class="phase green">
+    <div class="rail"><div class="dot">6</div><div class="line"></div></div>
+    <div class="body">
+      <h2>LAUNCH 启动<span class="who">专科手 #2 · 长任务后台</span></h2>
+      <div class="detail"><span class="code">launch_agent.py</span> {prod_dir, data_file, ff_file, cores, input_content, case_id} → {success, pids}。回报 <b>PID + 日志路径</b>;动手前确认核数余量(本机 64 核总量)与无管辖冲突。</div>
+      <div class="tools"><span>launch_agent.py</span><span>mpirun -np N lmp_mpi</span></div>
+    </div>
+  </div>
+
+  <!-- 7 -->
+  <div class="phase orange">
+    <div class="rail"><div class="dot">7</div><div class="line"></div></div>
+    <div class="body">
+      <h2>MONITOR 监控循环<span class="who">双通道互验</span></h2>
+      <div class="detail"><span class="code">monitor_agent.py</span> → {status, step, risk_score, 温度/能量/异常} 与 <span class="code">sim_status</span> 互补互验;<b>两边数字不一致要指出并查因</b>。risk_score ≥ 60 = 预防介入线。盯前几千步曲线再逐步放长间隔。</div>
+      <div class="tools"><span>monitor_agent.py</span><span>mcp__mdsim__sim_status</span></div>
+    </div>
+  </div>
+
+  <!-- 异常分支 -->
+  <div class="branch">
+    <b>⚠ 异常 / CRITICAL / risk≥60 → 进 Mode C 修复支路:</b>
+    ① 确诊(四真相源 + 直读 log.lammps,找第一根因,不重复已失败策略)→
+    ② subagent 蜂群四路联网搜证(官方文档/邮件列表/社区帖/本体系已知坑)→
+    ③ AI 比选(机理对本 case 是否成立 + 来源置信度,比选过程对话可见)→
+    ④ 逐项执行铁律:一次一变量、先备份、ffield 永不改、每项判【成/败/不确定】、修复日志.md 记一笔、预算 3 项 →
+    ⑤ 全败停下汇总,请用户决策。修好 → 回到 ⑦ 继续监控。
+  </div>
+
+  <!-- 8 -->
+  <div class="phase green">
+    <div class="rail"><div class="dot">8</div><div class="line"></div></div>
+    <div class="body">
+      <h2>DONE 验收<span class="who">跑完判定</span></h2>
+      <div class="detail">步数到位、日志正常收尾、无 lost atoms / 爆炸痕迹。定时巡检通道也会把"跑完"推给处理层/微信。</div>
+      <div class="tools"><span>md_push_driver(每 10 min)</span></div>
+    </div>
+  </div>
+
+  <!-- 9 -->
+  <div class="phase green">
+    <div class="rail"><div class="dot">9</div><div class="line"></div></div>
+    <div class="body">
+      <h2>ANALYZE 分析<span class="who">专科手 #3</span></h2>
+      <div class="detail"><span class="code">analyze_agent.py</span> → char_yield / p_retention;<span class="code">cp_calculator.py</span> 解析 log 算比热;密度/RDF/键/模量按 Mode B 拆解的分析面逐项出数。</div>
+      <div class="tools"><span>analyze_agent.py</span><span>cp_calculator.py</span></div>
+    </div>
+  </div>
+
+  <!-- 10 -->
+  <div class="phase">
+    <div class="rail"><div class="dot">10</div><div class="line"></div></div>
+    <div class="body">
+      <h2>归档<span class="who">任务文件夹 + 归纳说明</span></h2>
+      <div class="detail">按 <span class="code">&lt;项目&gt;/&lt;任务&gt;_&lt;时间戳&gt;/</span> 管理;每个文件夹生成<b>归纳说明.md</b>(数据来源/目录结构表/核心资产速查/注意事项);修复过的 case 附修复日志.md。审计流水 <span class="code">claude_operations.jsonl</span> 全程留痕可追溯。</div>
+      <div class="gate green">终点:一张汇总表(方案/执行/曲线数字/成败/证据出处)+ 结论与下一步建议</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

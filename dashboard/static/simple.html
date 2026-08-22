@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>LAMMPS 简易监控</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f5f6f7; color: #0f1115; padding: 20px; }
+  h1 { font-size: 1.2rem; color: #4176e6; }
+  button { background: #e1e5ee; color: #0f1115; border: 0; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 8px; }
+  button:hover { background: #43454a; }
+  table { border-collapse: collapse; margin-top: 10px; font-size: .85rem; width: 100%; max-width: 900px; }
+  th, td { border: 1px solid #e1e5ee; padding: 5px 8px; text-align: left; }
+  th { background: #ffffff; color: #61666b; }
+  .ok { color: #22c55e; }
+  .warn { color: #f59e0b; }
+  .crit { color: #ef4444; }
+  #err { color: #ef4444; margin-top: 10px; white-space: pre-wrap; }
+  #raw { color: #61666b; font-size: .75rem; margin-top: 10px; white-space: pre-wrap; }
+  #tasks { margin: 10px 0; }
+  #tasks a { color: #4176e6; margin-right: 12px; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>LAMMPS 简易监控面板</h1>
+<div id="tasks"><button onclick="loadTasks()">刷新任务列表</button><span id="task-list"></span></div>
+<div id="info">请先点击“刷新任务列表”或在 URL 中指定 ?task=任务ID</div>
+<table id="hist"><thead><tr><th>Step</th><th>Temp(K)</th><th>Etotal</th><th>PE</th><th>KE</th><th>Press</th><th>Volume</th><th>Density</th></tr></thead><tbody></tbody></table>
+<div id="err"></div>
+<div id="raw"></div>
+<script>
+const base = location.origin;
+let currentTask = new URLSearchParams(location.search).get('task');
+
+async function safeFetch(url) {
+  const raw = document.getElementById('raw');
+  raw.textContent = '请求: ' + url;
+  let res;
+  try { res = await fetch(url); }
+  catch (e) { throw new Error('fetch 异常: ' + e.message); }
+  const text = await res.text();
+  raw.textContent += '\nHTTP ' + res.status + '\n响应长度: ' + text.length + '\n前 500 字符:\n' + text.slice(0, 500);
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+  try { return JSON.parse(text); }
+  catch (e) { throw new Error('JSON 解析失败: ' + e.message + '\n' + text.slice(0, 200)); }
+}
+
+async function loadTasks() {
+  document.getElementById('err').textContent = '';
+  try {
+    const d = await safeFetch(base + '/api/tasks');
+    const all = (d.active || []).concat(d.today_stopped || []).concat(d.history || []);
+    const list = document.getElementById('task-list');
+    if (!all.length) { list.innerHTML = ' (无任务)'; return; }
+    list.innerHTML = ' 任务: ' + all.map(t =>
+      '<a onclick="loadTask(\'' + t.case_id + '\')">' + t.case_id + (t.alive ? ' (RUN)' : '') + '</a>'
+    ).join(' | ');
+    const cur = d.active.find(t => t.is_current) || d.active[0] || all[0];
+    if (!currentTask && cur) { currentTask = cur.case_id; loadTask(currentTask); }
+  } catch (e) {
+    document.getElementById('err').textContent = '任务列表加载失败: ' + e.message;
+  }
+}
+
+async function loadTask(task) {
+  currentTask = task;
+  history.replaceState(null, '', '/simple.html?task=' + encodeURIComponent(task));
+  document.getElementById('err').textContent = '';
+  try {
+    const d = await safeFetch(base + '/api/status?task=' + encodeURIComponent(task));
+    let html = '';
+    html += '<p><b>任务:</b> ' + (d.task && d.task.case_id || task) + '</p>';
+    html += '<p><b>阶段:</b> ' + (d.kinetic_stage || d.phase) + ' | ' + (d.kinetic_stage_desc || '') + ' | ' + (d.kinetic_stage_progress || '') + '</p>';
+    html += '<p><b>进度:</b> step ' + (d.step != null ? d.step.toLocaleString() : '--') + ' / ' + (d.total_steps != null ? d.total_steps.toLocaleString() : '--') + ' (' + (d.progress_pct != null ? d.progress_pct : '--') + '%) </p>';
+    html += '<p><b>状态:</b> ' + (d.alive ? '<span class="ok">运行中</span>' : '<span class="crit">未运行</span>') + ' | 核数: ' + (d.pids_count != null ? d.pids_count : '--') + '</p>';
+    html += '<p><b>温度:</b> ' + (d.temp != null ? d.temp : '--') + ' K | 压力: ' + (d.press != null ? d.press : '--') + ' | 体积: ' + (d.vol != null ? d.vol.toLocaleString() : '--') + ' | 密度: ' + (d.density != null ? d.density : '--') + '</p>';
+    html += '<p><b>能量:</b> total=' + (d.etotal != null ? d.etotal.toLocaleString() : '--') + ' pe=' + (d.pe != null ? d.pe.toLocaleString() : '--') + ' ke=' + (d.ke != null ? d.ke.toLocaleString() : '--') + '</p>';
+    html += '<p><b>更新时间:</b> ' + (d.timestamp || '--') + '</p>';
+    document.getElementById('info').innerHTML = html;
+    const tbody = document.querySelector('#hist tbody');
+    tbody.innerHTML = (d.history || []).slice(-15).reverse().map(r =>
+      '<tr><td>' + (r.step != null ? r.step.toLocaleString() : '--') + '</td><td>' + (r.temp != null ? r.temp.toFixed(1) : '--') + '</td><td>' + (r.etotal != null ? r.etotal.toLocaleString() : '--') + '</td><td>' + (r.pe != null ? r.pe.toLocaleString() : '--') + '</td><td>' + (r.ke != null ? r.ke.toLocaleString() : '--') + '</td><td>' + (r.press != null ? r.press.toFixed(1) : '--') + '</td><td>' + (r.vol != null ? r.vol.toLocaleString() : '--') + '</td><td>' + (r.density != null ? r.density : '--') + '</td></tr>'
+    ).join('');
+  } catch (e) {
+    document.getElementById('err').textContent = '任务数据加载失败: ' + e.message;
+  }
+}
+
+if (currentTask) loadTask(currentTask); else loadTasks();
+setInterval(() => { if (currentTask) loadTask(currentTask); }, 5000);
+</script>
+</body>
+</html>

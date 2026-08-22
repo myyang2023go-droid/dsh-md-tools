@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.log
+*.out
+.dsh/
+sessions/
+node_modules/
+
+# 真实配置（含路径/凭证），只提交 example 模板
+mcp/md_config.json
+mcp/_toolcalls.jsonl

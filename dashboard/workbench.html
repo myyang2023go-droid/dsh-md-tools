@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>分子模拟助手 · 工作台（左讨论 · 右看板）</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#f5f6f7; --border:rgba(0,0,0,.1); --border-soft:#ebedf0;
+    --text:#0f1115; --text-2:#61666b; --text-3:#81868c;
+    --brand:#4176e6; --brand-hover:#679efe; --brand-50:#edf3fe; --brand-100:#e4edfd;
+    --green:#22c55e; --green-100:#e6faed;
+    --shadow-1:0 2px 4px 0 rgba(0,0,0,.05);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+  html,body{margin:0;height:100%;font-family:var(--font);background:var(--panel);color:var(--text);overflow:hidden}
+
+  /* ── 顶栏 ── */
+  #bar{height:46px;display:flex;align-items:center;gap:12px;padding:0 14px;background:var(--bg);
+       border-bottom:1px solid var(--border);box-shadow:var(--shadow-1);font-size:13px;position:relative;z-index:10}
+  #bar .logo{width:10px;height:10px;border-radius:50%;background:var(--brand);display:inline-block;margin-right:8px;
+             box-shadow:0 0 0 3px var(--brand-100)}
+  #bar b{font-size:14px;font-weight:600;color:var(--text)}
+  #bar .hint{color:var(--text-3);font-size:12px;margin-left:4px}
+  #bar .spacer{margin-left:auto}
+  .navbtn{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:8px;border:1px solid transparent;
+          background:transparent;color:var(--text-2);font-size:12.5px;text-decoration:none;cursor:pointer;
+          transition:background .15s,color .15s;font-family:var(--font)}
+  .navbtn:hover{background:var(--brand-50);color:var(--brand)}
+
+  /* ── 自动审批开关(dsh 风格 switch) ── */
+  #aaWrap{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:4px 6px;border-radius:8px}
+  #aaWrap:hover{background:var(--brand-50)}
+  #aaWrap .lbl{font-size:12.5px;color:var(--text-2)}
+  #aaTrack{width:34px;height:19px;border-radius:10px;background:#dcdfe4;position:relative;transition:background .2s;flex-shrink:0}
+  #aaTrack::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;
+                  box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s}
+  #aaWrap.on #aaTrack{background:var(--green)}
+  #aaWrap.on #aaTrack::after{left:17px}
+  #aaWrap.on .lbl{color:var(--text);font-weight:500}
+  #aaWrap.off .lbl{color:var(--text-2)}
+
+  /* ── 分栏 ── */
+  #wrap{display:flex;height:calc(100% - 46px)}
+  .pane{height:100%;position:relative}
+  #left{flex:0 0 46%}
+  #right{flex:1 1 auto}
+  iframe{width:100%;height:100%;border:0;background:#fff}
+  #drag{flex:0 0 6px;cursor:col-resize;background:var(--border-soft);transition:background .15s}
+  #drag:hover,#drag.active{background:var(--brand-100)}
+  .tag{position:absolute;top:10px;left:10px;z-index:5;background:rgba(255,255,255,.92);backdrop-filter:blur(2px);
+       color:var(--text-2);font-size:11.5px;padding:3px 10px;border-radius:8px;pointer-events:none;
+       border:1px solid var(--border-soft);box-shadow:var(--shadow-1)}
+</style>
+</head>
+<body>
+  <div id="bar">
+    <span style="display:flex;align-items:center"><span class="logo"></span><b>分子模拟助手 · 工作台</b></span>
+    <span class="hint">左:对话 / 巡检 / 诊断 · 右:LAMMPS 实时看板(同一份真相源)</span>
+    <span class="spacer"></span>
+    <a class="navbtn" href="/pages/architecture.html" target="_blank" title="dsh-agent 五层架构总览">🗂 架构</a>
+    <a class="navbtn" href="/pages/task-flow.html" target="_blank" title="从上传文献到模拟运行的全流程">🧭 流程</a>
+    <span id="aaWrap" class="off" title="开启后:dsh 所有审批弹窗(sim_exec 写门/工作区外写)自动批准,审计照记;关闭恢复逐条弹窗">
+      <span class="lbl">自动审批</span><span id="aaTrack"></span>
+    </span>
+    <a class="navbtn" href="javascript:location.reload()">🔄 重载</a>
+  </div>
+  <div id="wrap">
+    <div class="pane" id="left"><div class="tag">💬 对话 · dsh 分子模拟助手</div><iframe src="http://127.0.0.1:3091/" allow="clipboard-read; clipboard-write"></iframe></div>
+    <div id="drag"></div>
+    <div class="pane" id="right"><div class="tag">📊 LAMMPS 看板 · web_monitor</div><iframe src="http://127.0.0.1:8080/"></iframe></div>
+  </div>
+<script>
+  // 自动审批开关(状态存在 dsh 侧 .dsh/auto-approve.json,插件每次审批时读)
+  const AA_API='http://127.0.0.1:8080/api/auto-approve';
+  const aaWrap=document.getElementById('aaWrap');
+  function aaRender(on){aaWrap.classList.toggle('on',!!on);aaWrap.classList.toggle('off',!on);}
+  async function aaRefresh(){try{const r=await fetch(AA_API);aaRender((await r.json()).enabled);}catch(e){}}
+  aaWrap.addEventListener('click',async()=>{
+    try{
+      const cur=await (await fetch(AA_API)).json();
+      const r=await fetch(AA_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!cur.enabled})});
+      aaRender((await r.json()).enabled);
+    }catch(e){}
+  });
+  aaRefresh(); setInterval(aaRefresh, 15000);
+
+  // 可拖拽分隔条
+  const drag=document.getElementById('drag'), left=document.getElementById('left'), wrap=document.getElementById('wrap');
+  let dragging=false;
+  drag.addEventListener('mousedown',()=>{dragging=true;drag.classList.add('active');document.body.style.userSelect='none';
+    document.querySelectorAll('iframe').forEach(f=>f.style.pointerEvents='none');});
+  window.addEventListener('mouseup',()=>{dragging=false;drag.classList.remove('active');document.body.style.userSelect='';
+    document.querySelectorAll('iframe').forEach(f=>f.style.pointerEvents='auto');});
+  window.addEventListener('mousemove',e=>{if(!dragging)return;
+    const pct=Math.min(75,Math.max(25, e.clientX / wrap.clientWidth * 100));
+    left.style.flex='0 0 '+pct+'%';});
+</script>
+</body>
+</html>
