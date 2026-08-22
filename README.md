@@ -5,6 +5,16 @@
 
 > 本仓库只包含外围工具。多智能体编排内核（相位机、物理门、受控写桥）不在本仓库内。
 
+## 截图
+
+| 看板 · 浅色 | 看板 · 暗色（跟随 dsh 主题） |
+|---|---|
+| ![dashboard light](docs/screenshots/dashboard-light.png) | ![dashboard dark](docs/screenshots/dashboard-dark.png) |
+
+| 工作台：左 dsh 对话 · 右实时看板 |
+|---|
+| ![workbench](docs/screenshots/workbench.png) |
+
 ## 组件
 
 ### 1. 看板 Dashboard（`dashboard/`）
