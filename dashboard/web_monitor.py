@@ -13,34 +13,49 @@ DB_FILE = os.path.join(BASE, ".v3.3_strategy_db.json")
 # 主题同步:跟随 dsh 侧 .dsh/settings.yaml 的 ui-theme.preference(dark 时对页面做调色板替换)
 DSH_SETTINGS = os.environ.get("DSH_SETTINGS", os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.dsh', 'settings.yaml'))
 
-# 浅色 hex → 暗色 hex(顺序敏感:6 位 hex 先于 3 位短形式,避免前缀误伤)
+# 浅色 hex → 深灰蓝玻璃 hex(顺序敏感:6 位 hex 先于 3 位短形式,避免前缀误伤)
 _DARK_MAP = [
-    ('#ffffff', '#1e2128'),
-    ('#f5f6f7', '#16181d'),
-    ('#0f1115', '#e4e7ee'),
-    ('#353638', '#cdd4de'),
-    ('#61666b', '#a3adbd'),
-    ('#81868c', '#7d8694'),
-    ('#43454a', '#454c5c'),
-    ('#e1e5ee', '#2e333e'),
-    ('#ebedf0', '#272b34'),
-    ('#4176e6', '#6b9bff'),
-    ('#679efe', '#8fb4ff'),
+    ('#ffffff', '#131c2e'),
+    ('#f5f6f7', '#0b1220'),
+    ('#0f1115', '#e6ecf5'),
+    ('#353638', '#c3cede'),
+    ('#61666b', '#9aa7bd'),
+    ('#81868c', '#7b8aa3'),
+    ('#43454a', '#3b4a68'),
+    ('#e1e5ee', '#263350'),
+    ('#ebedf0', '#22304a'),
+    ('#4176e6', '#6ea8ff'),
+    ('#679efe', '#93bdff'),
     ('#22c55e', '#34d399'),
     ('#f59e0b', '#fbbf24'),
     ('#ef4444', '#f87171'),
-    ('#e6faed', '#14281f'),
-    ('#fef2f2', '#2b1618'),
-    ('#fef5e7', '#2a2113'),
-    ('#edf3fe', '#1a2333'),
-    ('#e4edfd', '#22304a'),
-    ('#dcdfe4', '#3a4150'),
-    ('#e5e5e5', '#3a4150'),
-    ('#d4d4d4', '#4a5262'),
-    ('rgba(255,255,255,.92)', 'rgba(20,23,29,.92)'),
-    ('rgba(0,0,0,.05)', 'rgba(0,0,0,.35)'),
-    ('#fff}', '#16181d}'),  # workbench 的 iframe 背景(短形式,仅出现在 background:#fff})
+    ('#e6faed', '#0f2b22'),
+    ('#fef2f2', '#2d1518'),
+    ('#fef5e7', '#2b2210'),
+    ('#edf3fe', '#16233d'),
+    ('#e4edfd', '#1d2f52'),
+    ('#dcdfe4', '#3a4a68'),
+    ('#e5e5e5', '#3a4a68'),
+    ('#d4d4d4', '#4a5b7d'),
+    ('rgba(255,255,255,.92)', 'rgba(11,18,32,.92)'),
+    ('rgba(0,0,0,.05)', 'rgba(0,0,0,.40)'),
+    ('#fff}', '#131c2e}'),  # workbench 的 iframe 背景(短形式,仅出现在 background:#fff})
 ]
+
+# 暗色时追加的玻璃拟态增强层(置于 </head> 前,同优先级后者生效)
+_GLASS_CSS = """<style id="dsh-glass">
+body{background:radial-gradient(1200px 800px at 20% -10%,#16233d 0%,#0b1220 55%) fixed;}
+.card,.progress-wrap,.chart-wrap,.log-wrap,.agent-wrap{
+  background:rgba(19,28,46,.72);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-top:1px solid rgba(110,168,255,.14);
+  border-right:1px solid rgba(110,168,255,.14);
+  border-bottom:1px solid rgba(110,168,255,.14);
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+}
+.agent-card,.recovery-card{background:rgba(15,23,40,.6);border:1px solid rgba(110,168,255,.10);}
+h1{background:linear-gradient(90deg,#6ea8ff,#34d399);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+</style>"""
 
 def _dsh_theme():
     try:
@@ -58,6 +73,8 @@ def _apply_theme(html):
         return html
     for old, new in _DARK_MAP:
         html = html.replace(old, new)
+    if '</head>' in html and 'id="dsh-glass"' not in html:
+        html = html.replace('</head>', _GLASS_CSS + '</head>', 1)
     return html
 
 def _current_prod_dir():

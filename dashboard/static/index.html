@@ -215,6 +215,13 @@
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:#e5e5e5;border-radius:4px}
   ::-webkit-scrollbar-thumb:hover{background:#d4d4d4}
+
+  /* 趋势区迷你折线图 */
+  .spark-card{display:flex;flex-direction:column;gap:4px;padding:10px 12px;}
+  .spark-head{display:flex;justify-content:space-between;align-items:baseline;}
+  .spark-val{font-size:1rem;font-weight:700;color:#0f1115;}
+  canvas.sparkline{width:100%;height:44px;display:block;}
+  .spark-foot{text-align:left;font-size:.68rem;}
 </style>
 </head>
 <body>
@@ -365,24 +372,24 @@
       </div>
     </div>
   </div>
-  <!-- 趋势指标 -->
+  <!-- 趋势指标:迷你折线图(温度/能量/压强,取 history 采样) -->
   <div class="agent-wrap">
     <h2 style="margin-top:0;">📈 趋势 (Trends)</h2>
     <div class="agent-grid" style="grid-template-columns:1fr 1fr 1fr;">
-      <div class="agent-card" style="text-align:center;">
-        <div class="agent-name">dT/dt</div>
-        <div class="agent-val" style="font-size:1.2rem;" id="trend-dt">--</div>
-        <div class="agent-key">K/step</div>
+      <div class="agent-card spark-card">
+        <div class="spark-head"><span class="agent-name">温度</span><span class="spark-val" id="spark-temp-val">--</span></div>
+        <canvas id="spark-temp" class="sparkline"></canvas>
+        <div class="agent-key spark-foot"><span id="trend-dt">--</span> K/step</div>
       </div>
-      <div class="agent-card" style="text-align:center;">
-        <div class="agent-name">dE/dt</div>
-        <div class="agent-val" style="font-size:1.2rem;" id="trend-de">--</div>
-        <div class="agent-key">kcal/step</div>
+      <div class="agent-card spark-card">
+        <div class="spark-head"><span class="agent-name">能量</span><span class="spark-val" id="spark-energy-val">--</span></div>
+        <canvas id="spark-energy" class="sparkline"></canvas>
+        <div class="agent-key spark-foot"><span id="trend-de">--</span> kcal/step</div>
       </div>
-      <div class="agent-card" style="text-align:center;">
-        <div class="agent-name">dP/dt</div>
-        <div class="agent-val" style="font-size:1.2rem;" id="trend-dp">--</div>
-        <div class="agent-key">atm/step</div>
+      <div class="agent-card spark-card">
+        <div class="spark-head"><span class="agent-name">压强</span><span class="spark-val" id="spark-press-val">--</span></div>
+        <canvas id="spark-press" class="sparkline"></canvas>
+        <div class="agent-key spark-foot"><span id="trend-dp">--</span> atm/step</div>
       </div>
     </div>
   </div>
@@ -1322,6 +1329,58 @@ function renderTrends(trends) {
   el('trend-dt', dt); el('trend-de', de); el('trend-dp', dp);
 }
 
+/* 迷你折线图:从 history 采样绘制,零后端改动 */
+function drawSparkline(id, values, color) {
+  const c = document.getElementById(id);
+  if (!c || values.length < 2) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, h = c.clientHeight;
+  if (!w || !h) return;
+  const W = Math.round(w * dpr), H = Math.round(h * dpr);
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const ctx = c.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = max - min || 1;
+  const pad = 3, ph = h - pad * 2 - 4;
+  const stepX = (w - pad * 2) / (values.length - 1);
+  const Y = v => pad + 2 + ph * (1 - (v - min) / range);
+  ctx.beginPath();
+  values.forEach((v, i) => { const x = pad + i * stepX; i ? ctx.lineTo(x, Y(v)) : ctx.moveTo(x, Y(v)); });
+  ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.lineJoin = 'round'; ctx.stroke();
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, color + '3d'); grad.addColorStop(1, color + '00');
+  ctx.lineTo(pad + (values.length - 1) * stepX, h); ctx.lineTo(pad, h); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.beginPath(); ctx.arc(pad + (values.length - 1) * stepX, Y(values[values.length - 1]), 2.5, 0, Math.PI * 2);
+  ctx.fillStyle = color; ctx.fill();
+}
+
+let prevSparkHash = '';
+function renderSparklines(hist) {
+  if (!hist || hist.length < 2) return;
+  const last = hist[hist.length - 1];
+  const hash = hist.length + ':' + (last.step || 0);
+  if (hash === prevSparkHash) return;
+  prevSparkHash = hash;
+  const N = 180, stride = Math.max(1, Math.floor(hist.length / N));
+  const sample = hist.filter((_, i) => i % stride === 0).slice(-N);
+  const set = (id, v, unit, dec) => { const e = document.getElementById(id); if (e && typeof v === 'number') e.textContent = v.toLocaleString(undefined, { maximumFractionDigits: dec }) + unit; };
+  if (typeof last.temp === 'number') {
+    drawSparkline('spark-temp', sample.map(p => p.temp), '#f59e0b');
+    set('spark-temp-val', last.temp, ' K', 1);
+  }
+  if (typeof last.etotal === 'number') {
+    drawSparkline('spark-energy', sample.map(p => p.etotal), '#4176e6');
+    set('spark-energy-val', last.etotal, '', 0);
+  }
+  if (typeof last.press === 'number') {
+    drawSparkline('spark-press', sample.map(p => p.press), '#22c55e');
+    set('spark-press-val', last.press, ' atm', 1);
+  }
+}
+
 function renderMonitorPanel(monitor_status, risk_score, anomalies_count) {
   const ring = document.getElementById('risk-ring');
   const st = document.getElementById('mon-panel-status');
@@ -2246,6 +2305,7 @@ async function refresh() {
     if (d.monitor_log) renderLog(d.monitor_log);
     if (d.history) renderHistoryTable(d.history);
     if (d.trends) renderTrends(d.trends);
+    if (d.history) renderSparklines(d.history);
     renderMonitorPanel(d.monitor_status, d.risk_score, d.anomalies_count);
 
     // Render recovery details
