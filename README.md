@@ -2,97 +2,99 @@
 
 # DSH MD Tools
 
-**让大模型安全地"看懂"分子动力学模拟 —— 分子模拟助手的外围工具集**
+**Let LLMs safely "see" molecular dynamics simulations — a peripheral toolkit for the MD simulation agent**
 
-实时监控看板 · MCP 只读桥 · 相位机可视化 · 主题同步
+Real-time monitoring dashboard · Read-only MCP bridge · Phase-machine visualization · Theme sync
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.6%2B-green.svg)]()
 [![Dependencies](https://img.shields.io/badge/Dependencies-Zero-brightgreen.svg)]()
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-lightgrey.svg)]()
 
+**English | [中文](README.zh-CN.md)**
+
 </div>
 
 ---
 
-## 这是什么
+## What is this
 
-跑 LAMMPS 长任务时，你是不是也这样：`tail -f log.lammps` 刷到眼花，温度飞了半小时才发现，算完才发现力场拿错？
+Running long LAMMPS jobs, you probably know the drill: `tail -f log.lammps` until your eyes bleed, a temperature spike goes unnoticed for half an hour, and the wrong force field is discovered only after the run finishes.
 
-**DSH MD Tools** 给 LLM 智能体（基于 [DSH (DeepSeek Harness)](https://www.npmjs.com/package/@deepseek-ai/dsh)）装上一双眼睛：
+**DSH MD Tools** gives an LLM agent (built on [DSH (DeepSeek Harness)](https://www.npmjs.com/package/@deepseek-ai/dsh)) a pair of eyes:
 
-- 📊 **实时看板**：步数 / 温度 / 能量 / 压强 / 密度一屏尽览，智能体相位机与 MONITOR 五子相位（观测→分析→检测→评估→决策）全程可视
-- 🔌 **MCP 只读桥**：8 个工具让大模型随时查询模拟状态，**只读**设计，唯一的写门 `sim_exec` 走白名单 + 逐条审批
-- 🖥️ **工作台**：左边和分子模拟助手对话，右边看板实时跳动，同一份真相源
-- 🌗 **主题同步**：看板自动跟随 DSH 的深浅主题，0.5 秒内切换，保留滚动位置
+- 📊 **Real-time dashboard**: steps / temperature / energy / pressure / density at a glance, with the agent phase machine and the five MONITOR sub-phases (observe → analyze → detect → evaluate → decide) fully visible
+- 🔌 **Read-only MCP bridge**: 8 tools let the LLM query simulation state at any time. **Read-only by design** — the single write gate `sim_exec` is protected by a whitelist + per-command approval
+- 🖥️ **Workbench**: chat with the MD assistant on the left, watch the live dashboard on the right — one source of truth
+- 🌗 **Theme sync**: the dashboard follows DSH's light/dark theme within 0.5 s, preserving scroll position
 
-零依赖 —— 只用 Python 标准库 + 原生 HTML/JS，拷走即用。
+Zero dependencies — Python standard library + vanilla HTML/JS only. Copy and run.
 
-## 实拍
+## Screenshots
 
-| 看板 · 浅色 | 看板 · 暗色（跟随 DSH 主题） |
+| Dashboard · Light | Dashboard · Dark (follows DSH theme) |
 |:---:|:---:|
 | ![dashboard light](docs/screenshots/dashboard-light.png) | ![dashboard dark](docs/screenshots/dashboard-dark.png) |
 
-| 工作台：左 分子模拟助手对话 · 右实时看板 |
+| Workbench: MD assistant chat (left) · live dashboard (right) |
 |:---:|
 | ![workbench](docs/screenshots/workbench.png) |
 
-> 图中为真实运行案例：5660 原子聚合物前驱体体系 300K 恒温松弛（共 200 万步），当前 63,100 步、1471.7K、风险评分 0、相位机处于 MONITOR 观测态。
+> Real run shown: a 5,660-atom polymer precursor system relaxing at 300 K (2,000,000 steps in total) — captured at ~75,000 steps, 1730 K, risk score 0, phase machine in MONITOR/observe.
 
-## 快速开始
+## Quick start
 
 ```bash
-# ① 看板（:8080）
-export AGENT_KIT_DIR=/path/to/your/agent_deploy_kit   # 智能体套件目录
-export RUN_CASE_DIR=/path/to/your/run-cases           # 可选，默认 $AGENT_KIT_DIR/production
+# ① Dashboard (:8080)
+export AGENT_KIT_DIR=/path/to/your/agent_deploy_kit   # agent kit directory
+export RUN_CASE_DIR=/path/to/your/run-cases           # optional, defaults to $AGENT_KIT_DIR/production
 python3 dashboard/web_monitor.py 8080
 
-# 浏览器打开
-#   http://127.0.0.1:8080/           看板
-#   http://127.0.0.1:8080/workbench  工作台（对话 + 看板双栏）
+# Open in browser
+#   http://127.0.0.1:8080/           Dashboard
+#   http://127.0.0.1:8080/workbench  Workbench (chat + dashboard side by side)
 
-# ② MCP 只读桥（接入 DSH）
+# ② Read-only MCP bridge (connect to DSH)
 cp mcp/md_config.example.json mcp/md_config.json
-# 编辑 md_config.json 填入你的路径，支持 local / ssh 两种模式
+# Edit md_config.json with your paths; both local and ssh modes are supported
 ```
 
-### 环境变量
+### Environment variables
 
-| 变量 | 说明 | 默认 |
+| Variable | Description | Default |
 |---|---|---|
-| `AGENT_KIT_DIR` | 智能体套件目录（含 `.v3.3_state.json`） | `~/agent_deploy_kit` |
-| `RUN_CASE_DIR` | 运行案例根目录 | `$AGENT_KIT_DIR/production` |
-| `DSH_SETTINGS` | DSH 的 settings.yaml 路径（主题同步用） | `../.dsh/settings.yaml` |
-| `WEB_HOST` | 绑定地址 | `127.0.0.1`（局域网暴露设 `0.0.0.0`） |
+| `AGENT_KIT_DIR` | Agent kit directory (contains `.v3.3_state.json`) | `~/agent_deploy_kit` |
+| `RUN_CASE_DIR` | Run-case root directory | `$AGENT_KIT_DIR/production` |
+| `DSH_SETTINGS` | Path to DSH's settings.yaml (for theme sync) | `../.dsh/settings.yaml` |
+| `WEB_HOST` | Bind address | `127.0.0.1` (set `0.0.0.0` to expose on LAN) |
 
-## MCP 工具一览
+## MCP tools
 
-| 工具 | 用途 | 权限 |
+| Tool | Purpose | Permission |
 |---|---|---|
-| `sim_status` | 当前步数 / 温度 / 相位机状态 | 只读 |
-| `sim_context` | 任务上下文（力场、数据文件、目录） | 只读 |
-| `sim_strategy_log` | 策略 / 决策历史 | 只读 |
-| `sim_orchestrator_log` | 编排日志 | 只读 |
-| `sim_recent_ops` | 最近操作审计 | 只读 |
-| `read_paper` | 读取文献附件 | 只读 |
-| `open_monitor` | 打开看板 | 只读 |
-| `sim_exec` | 执行命令 | 🔒 写门：白名单 + 逐条审批 |
+| `sim_status` | Current step / temperature / phase machine state | read-only |
+| `sim_context` | Task context (force field, data files, directories) | read-only |
+| `sim_strategy_log` | Strategy / decision history | read-only |
+| `sim_orchestrator_log` | Orchestrator log | read-only |
+| `sim_recent_ops` | Recent operation audit | read-only |
+| `read_paper` | Read literature attachments | read-only |
+| `open_monitor` | Open the dashboard | read-only |
+| `sim_exec` | Execute a command | 🔒 write gate: whitelist + per-command approval |
 
-## 安全设计
+## Security design
 
-- **只读优先**：除 `sim_exec` 外全部只读；写门命令白名单过滤（禁 bash/sh/nohup/setsid），审计落盘
-- **默认本机绑定**：看板只听 `127.0.0.1`，暴露局域网需显式设 `WEB_HOST`
-- **凭证隔离**：真实配置（`md_config.json`）被 `.gitignore` 排除，仓库内只有模板
+- **Read-only first**: everything except `sim_exec` is read-only; the write gate filters commands through a whitelist (bash/sh/nohup/setsid banned) and persists an audit log
+- **Localhost by default**: the dashboard binds to `127.0.0.1`; LAN exposure requires explicitly setting `WEB_HOST`
+- **Credential isolation**: the real config (`md_config.json`) is excluded via `.gitignore`; only a template ships in the repo
 
-## 适用场景
+## Use cases
 
-- 材料热 / 力性能评估的长时间 MD 任务值守
-- 生物药物、纳米材料体系的多任务批量监控
-- AI4Science 智能体工作流的可观测性层
+- Babysitting long-running MD jobs for thermal/mechanical materials evaluation
+- Batch monitoring of bio-pharmaceutical and nanomaterial systems
+- Observability layer for AI4Science agent workflows
 
-## 许可证
+## License
 
-Apache-2.0，见 [LICENSE](LICENSE)。第三方声明见 [NOTICE](NOTICE)。
+Apache-2.0, see [LICENSE](LICENSE). Third-party notices in [NOTICE](NOTICE).
 
-> 本仓库为外围工具集。多智能体编排内核（相位机决策逻辑、物理门、受控写桥）不在本仓库内。
+> This repo contains the peripheral toolkit only. The multi-agent orchestration core (phase-machine decision logic, physics gates, controlled write bridge) is not part of this repository.
