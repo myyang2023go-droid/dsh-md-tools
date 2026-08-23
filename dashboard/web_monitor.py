@@ -70,6 +70,8 @@ def _apply_theme(html):
     if '<meta name="dsh-theme"' not in html and '</head>' in html:
         html = html.replace('</head>', '<meta name="dsh-theme" content="%s"></head>' % theme, 1)
     if theme != 'dark':
+        if '</head>' in html and 'id="dsh-glass-light"' not in html:
+            html = html.replace('</head>', _GLASS_CSS_LIGHT + '</head>', 1)
         return html
     for old, new in _DARK_MAP:
         html = html.replace(old, new)
