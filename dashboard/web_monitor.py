@@ -13,49 +13,120 @@ DB_FILE = os.path.join(BASE, ".v3.3_strategy_db.json")
 # 主题同步:跟随 dsh 侧 .dsh/settings.yaml 的 ui-theme.preference(dark 时对页面做调色板替换)
 DSH_SETTINGS = os.environ.get("DSH_SETTINGS", os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.dsh', 'settings.yaml'))
 
-# 浅色 hex → 深灰蓝玻璃 hex(顺序敏感:6 位 hex 先于 3 位短形式,避免前缀误伤)
-_DARK_MAP = [
-    ('#ffffff', '#131c2e'),
-    ('#f5f6f7', '#0b1220'),
-    ('#0f1115', '#e6ecf5'),
-    ('#353638', '#c3cede'),
-    ('#61666b', '#9aa7bd'),
-    ('#81868c', '#7b8aa3'),
-    ('#43454a', '#3b4a68'),
-    ('#e1e5ee', '#263350'),
-    ('#ebedf0', '#22304a'),
-    ('#4176e6', '#6ea8ff'),
-    ('#679efe', '#93bdff'),
-    ('#22c55e', '#34d399'),
-    ('#f59e0b', '#fbbf24'),
-    ('#ef4444', '#f87171'),
-    ('#e6faed', '#0f2b22'),
-    ('#fef2f2', '#2d1518'),
-    ('#fef5e7', '#2b2210'),
-    ('#edf3fe', '#16233d'),
-    ('#e4edfd', '#1d2f52'),
-    ('#dcdfe4', '#3a4a68'),
-    ('#e5e5e5', '#3a4a68'),
-    ('#d4d4d4', '#4a5b7d'),
-    ('rgba(255,255,255,.92)', 'rgba(11,18,32,.92)'),
-    ('rgba(0,0,0,.05)', 'rgba(0,0,0,.40)'),
-    ('#fff}', '#131c2e}'),  # workbench 的 iframe 背景(短形式,仅出现在 background:#fff})
+# ── 多主题系统 ─────────────────────────────────────────────
+# 浅色系源码 hex(顺序固定,各调色板按同序给出替换目标;顺序敏感:6 位 hex 先于 3 位短形式)
+_LIGHT_SRC = [
+    '#ffffff', '#f5f6f7', '#0f1115', '#353638', '#61666b', '#81868c', '#43454a',
+    '#e1e5ee', '#ebedf0', '#4176e6', '#679efe', '#22c55e', '#f59e0b', '#ef4444',
+    '#e6faed', '#fef2f2', '#fef5e7', '#edf3fe', '#e4edfd', '#dcdfe4', '#e5e5e5',
+    '#d4d4d4', 'rgba(255,255,255,.92)', 'rgba(255,255,255,.85)', '#7c3aed',
+    'rgba(0,0,0,.05)', '#fff}',
 ]
 
-# 暗色时追加的玻璃拟态增强层(置于 </head> 前,同优先级后者生效)
-_GLASS_CSS = """<style id="dsh-glass">
-body{background:radial-gradient(1200px 800px at 20% -10%,#16233d 0%,#0b1220 55%) fixed;}
-.card,.progress-wrap,.chart-wrap,.log-wrap,.agent-wrap{
-  background:rgba(19,28,46,.72);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  border-top:1px solid rgba(110,168,255,.14);
-  border-right:1px solid rgba(110,168,255,.14);
-  border-bottom:1px solid rgba(110,168,255,.14);
-  box-shadow:0 8px 24px rgba(0,0,0,.35);
+def _mk_palette(targets):
+    return list(zip(_LIGHT_SRC, targets))
+
+_PALETTES = {
+    # 深色:对齐 DSH 暗色(中性灰 #151517 底 / #1b1b1c 面板 / rgba(255,255,255,.06) 边)
+    'dark': _mk_palette([
+        '#1b1b1c', '#151517', '#f9fafb', '#d6d6da', '#a3a3ab', '#7a7a82', '#3a3a3e',
+        '#2c2c2e', '#262628', '#6b8afd', '#93adff', '#3fe0a0', '#ffce6b', '#ff6b6b',
+        '#12251d', '#2a1616', '#2a2210', '#1a2030', '#232c42', '#3a3a3e', '#3a3a3e',
+        '#4a4a50', 'rgba(21,21,23,.92)', 'rgba(27,27,28,.85)', '#a78bfa',
+        'rgba(0,0,0,.40)', '#1b1b1c}',
+    ]),
+    # 深海:深灰蓝(对齐《AI+MD智能体平台_投资介绍》暗色变量)
+    'ocean': _mk_palette([
+        '#141b2d', '#05070f', '#eaf0fb', '#c6d2e8', '#9aa8c4', '#7d8cab', '#3a4a74',
+        '#263152', '#1e2740', '#5ea8ff', '#8fc2ff', '#3fe0a0', '#ffce6b', '#ff6b6b',
+        '#0d2b22', '#2e1618', '#2e2410', '#14203c', '#1b2a4e', '#3a4a74', '#3a4a74',
+        '#4a5d8f', 'rgba(5,7,15,.92)', 'rgba(20,27,45,.85)', '#b490ff',
+        'rgba(0,0,0,.40)', '#141b2d}',
+    ]),
+    # 暗紫
+    'purple': _mk_palette([
+        '#1a1426', '#100c1a', '#efe9fa', '#cfc3e4', '#a394c2', '#7f6f9e', '#4a3d6e',
+        '#2d2342', '#251c38', '#a78bfa', '#c4b5fd', '#3fe0a0', '#ffce6b', '#ff6b6b',
+        '#14251f', '#2b161c', '#2a2113', '#241a3d', '#2f2350', '#4a3d6e', '#4a3d6e',
+        '#5d4e85', 'rgba(16,12,26,.92)', 'rgba(26,20,38,.85)', '#c4b5fd',
+        'rgba(0,0,0,.40)', '#1a1426}',
+    ]),
+    # 墨绿
+    'forest': _mk_palette([
+        '#12211b', '#0a1410', '#e8f4ee', '#c2d8cd', '#93b0a3', '#749184', '#35594a',
+        '#1e352b', '#1a2d24', '#34d399', '#6ee7b7', '#3fe0a0', '#ffce6b', '#ff6b6b',
+        '#10281e', '#2a1616', '#2a2110', '#122a20', '#18382a', '#35594a', '#35594a',
+        '#47735f', 'rgba(10,20,16,.92)', 'rgba(18,33,27,.85)', '#6ee7b7',
+        'rgba(0,0,0,.40)', '#12211b}',
+    ]),
 }
-.agent-card,.recovery-card{background:rgba(15,23,40,.6);border:1px solid rgba(110,168,255,.10);}
-h1{background:linear-gradient(90deg,#6ea8ff,#34d399);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
-</style>"""
+
+_WAVE_CSS = """body::before,body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:@H@;pointer-events:none;z-index:-1;background-repeat:repeat-x;background-position:bottom;background-size:1440px 100%;}
+body::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120'%3E%3Cpath fill='%23@C1@' fill-opacity='@O1@' d='M0,64 C240,96 480,32 720,64 C960,96 1200,32 1440,64 L1440,120 L0,120 Z'/%3E%3C/svg%3E");animation:dsh-wave 24s linear infinite;}
+body::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120'%3E%3Cpath fill='%23@C2@' fill-opacity='@O2@' d='M0,72 C260,44 520,100 780,72 C1040,44 1240,96 1440,72 L1440,120 L0,120 Z'/%3E%3C/svg%3E");animation:dsh-wave 34s linear infinite reverse;}
+@keyframes dsh-wave{from{background-position-x:0}to{background-position-x:1440px}}
+"""
+
+def _waves(c1, o1, c2, o2, h):
+    return (_WAVE_CSS.replace('@C1@', c1).replace('@O1@', o1)
+                     .replace('@C2@', c2).replace('@O2@', o2).replace('@H@', h))
+
+def _wrap(body_css, wave_css):
+    return '<style id="dsh-glass">' + body_css + wave_css + '</style>'
+
+_THEME_CSS = {
+    'light': _wrap(
+        'html{background:#f4f6fb;}'
+        'body{background:radial-gradient(1200px 800px at 20% -10%,#ffffff 0%,#f4f6fb 60%) fixed;}'
+        '.card,.progress-wrap,.chart-wrap,.log-wrap,.agent-wrap{background:rgba(255,255,255,.9);'
+        'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:10px;'
+        'border-top:1px solid rgba(30,60,120,.12);border-right:1px solid rgba(30,60,120,.12);'
+        'border-bottom:1px solid rgba(30,60,120,.12);box-shadow:0 6px 20px rgba(30,60,120,.08);}'
+        '.agent-card,.recovery-card{background:rgba(255,255,255,.72);border:1px solid rgba(30,60,120,.10);border-radius:8px;}'
+        'h1{background:linear-gradient(92deg,#2563eb,#7c3aed 75%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}'
+        '.progress-fill{box-shadow:0 0 8px rgba(37,99,235,.30);}',
+        _waves('2563eb', '.13', '7c3aed', '.10', '40vh')),
+    'dark': _wrap(
+        'html{background:#151517;}'
+        'body{background:radial-gradient(1200px 800px at 20% -10%,#1a1a1d 0%,#151517 55%) fixed;}'
+        '.card,.progress-wrap,.chart-wrap,.log-wrap,.agent-wrap{background:rgba(27,27,28,.85);'
+        'backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);'
+        'border-top:1px solid rgba(255,255,255,.08);border-right:1px solid rgba(255,255,255,.08);'
+        'border-bottom:1px solid rgba(255,255,255,.08);box-shadow:0 8px 24px rgba(0,0,0,.40);}'
+        '.agent-card,.recovery-card{background:rgba(18,18,20,.6);border:1px solid rgba(255,255,255,.06);}'
+        'h1{background:linear-gradient(92deg,#8fa8ff,#a78bfa 70%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}',
+        _waves('6b8afd', '.14', 'a78bfa', '.10', '40vh')),
+    'ocean': _wrap(
+        'html{background:#05070f;}'
+        'body{background:radial-gradient(1200px 800px at 20% -10%,#0d1526 0%,#05070f 55%) fixed;}'
+        '.card,.progress-wrap,.chart-wrap,.log-wrap,.agent-wrap{background:rgba(20,27,45,.72);'
+        'backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);'
+        'border-top:1px solid rgba(90,120,200,.22);border-right:1px solid rgba(90,120,200,.22);'
+        'border-bottom:1px solid rgba(90,120,200,.22);box-shadow:0 8px 24px rgba(0,0,0,.35);}'
+        '.agent-card,.recovery-card{background:rgba(14,20,36,.6);border:1px solid rgba(90,120,200,.16);}'
+        'h1{background:linear-gradient(92deg,#7db9ff,#b490ff 70%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}',
+        _waves('5ea8ff', '.20', 'b490ff', '.15', '44vh')),
+    'purple': _wrap(
+        'html{background:#100c1a;}'
+        'body{background:radial-gradient(1200px 800px at 20% -10%,#1c1430 0%,#100c1a 55%) fixed;}'
+        '.card,.progress-wrap,.chart-wrap,.log-wrap,.agent-wrap{background:rgba(26,20,38,.72);'
+        'backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);'
+        'border-top:1px solid rgba(167,139,250,.20);border-right:1px solid rgba(167,139,250,.20);'
+        'border-bottom:1px solid rgba(167,139,250,.20);box-shadow:0 8px 24px rgba(0,0,0,.35);}'
+        '.agent-card,.recovery-card{background:rgba(18,13,28,.6);border:1px solid rgba(167,139,250,.14);}'
+        'h1{background:linear-gradient(92deg,#c4b5fd,#f0abfc 70%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}',
+        _waves('a78bfa', '.18', 'f0abfc', '.13', '42vh')),
+    'forest': _wrap(
+        'html{background:#0a1410;}'
+        'body{background:radial-gradient(1200px 800px at 20% -10%,#10231a 0%,#0a1410 55%) fixed;}'
+        '.card,.progress-wrap,.chart-wrap,.log-wrap,.agent-wrap{background:rgba(18,33,27,.72);'
+        'backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);'
+        'border-top:1px solid rgba(52,211,153,.18);border-right:1px solid rgba(52,211,153,.18);'
+        'border-bottom:1px solid rgba(52,211,153,.18);box-shadow:0 8px 24px rgba(0,0,0,.35);}'
+        '.agent-card,.recovery-card{background:rgba(12,24,18,.6);border:1px solid rgba(52,211,153,.13);}'
+        'h1{background:linear-gradient(92deg,#6ee7b7,#3fd4dc 70%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}',
+        _waves('34d399', '.16', '3fd4dc', '.12', '42vh')),
+}
 
 def _dsh_theme():
     try:
@@ -65,18 +136,25 @@ def _dsh_theme():
     except Exception:
         return 'light'
 
-def _apply_theme(html):
-    theme = _dsh_theme()
+def _effective_theme(cookie_header=''):
+    pref = 'auto'
+    if cookie_header:
+        m = re.search(r'dash-theme=([\w-]+)', cookie_header)
+        if m:
+            pref = m.group(1)
+    if pref in _THEME_CSS:
+        return pref
+    return 'dark' if _dsh_theme() == 'dark' else 'light'
+
+def _apply_theme(html, cookie_header=''):
+    theme = _effective_theme(cookie_header)
     if '<meta name="dsh-theme"' not in html and '</head>' in html:
         html = html.replace('</head>', '<meta name="dsh-theme" content="%s"></head>' % theme, 1)
-    if theme != 'dark':
-        if '</head>' in html and 'id="dsh-glass-light"' not in html:
-            html = html.replace('</head>', _GLASS_CSS_LIGHT + '</head>', 1)
-        return html
-    for old, new in _DARK_MAP:
+    for old, new in _PALETTES.get(theme, []):
         html = html.replace(old, new)
-    if '</head>' in html and 'id="dsh-glass"' not in html:
-        html = html.replace('</head>', _GLASS_CSS + '</head>', 1)
+    css = _THEME_CSS.get(theme)
+    if css and '</head>' in html and 'id="dsh-glass"' not in html:
+        html = html.replace('</head>', css + '</head>', 1)
     return html
 
 def _current_prod_dir():
@@ -819,7 +897,7 @@ class Handler(BaseHTTPRequestHandler):
             wb = os.path.join(os.path.dirname(__file__), 'workbench.html')
             if os.path.exists(wb):
                 with open(wb, encoding='utf-8') as f:
-                    html = _apply_theme(f.read())
+                    html = _apply_theme(f.read(), self.headers.get('Cookie', ''))
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
                 self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
@@ -853,7 +931,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == '/api/theme':
-            self._json_response({'theme': _dsh_theme()})
+            self._json_response({'theme': _effective_theme(self.headers.get('Cookie', ''))})
             return
 
         if path == '/api/status':
@@ -881,7 +959,7 @@ class Handler(BaseHTTPRequestHandler):
         html_path = os.path.join(os.path.dirname(__file__), 'static', html_name)
         if os.path.exists(html_path):
             with open(html_path, encoding='utf-8') as f:
-                html = _apply_theme(f.read())
+                html = _apply_theme(f.read(), self.headers.get('Cookie', ''))
         else:
             html = "<h1>" + html_name + " not found</h1>"
         self.send_response(200)

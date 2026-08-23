@@ -26,9 +26,11 @@ Running long LAMMPS jobs, you probably know the drill: `tail -f log.lammps` unti
 - 📊 **Real-time dashboard**: steps / temperature / energy / pressure / density at a glance, with the agent phase machine and the five MONITOR sub-phases (observe → analyze → detect → evaluate → decide) fully visible
 - 🔌 **Read-only MCP bridge**: 8 tools let the LLM query simulation state at any time. **Read-only by design** — the single write gate `sim_exec` is protected by a whitelist + per-command approval
 - 🖥️ **Workbench**: chat with the MD assistant on the left, watch the live dashboard on the right — one source of truth
-- 🌗 **Theme sync**: the dashboard follows DSH's light/dark theme within 0.5 s, preserving scroll position
+- 🎨 **Six themes**: light / dark (DSH-matched neutral gray) / ocean / purple / forest, plus `auto` that follows DSH within 0.5 s — one choice themes dashboard, workbench and simple pages alike
 
 Zero dependencies — Python standard library + vanilla HTML/JS only. Copy and run.
+
+Want the full picture? See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Screenshots
 

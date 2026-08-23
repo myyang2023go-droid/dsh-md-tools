@@ -227,7 +227,17 @@
 <body>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
   <h1 style="margin-bottom:0;">🧪 LAMMPS Agent v3.4 Dashboard</h1>
-  <button id="back-btn" style="display:none;padding:6px 12px;background:#ffffff;color:#4176e6;border:1px solid #e1e5ee;border-radius:6px;cursor:pointer;font-size:.8rem;" onclick="location.href='/?list=1'">← 返回任务列表</button>
+  <span style="display:flex;gap:8px;align-items:center;">
+    <select id="theme-sel" title="看板主题" style="padding:4px 8px;background:#ffffff;color:#61666b;border:1px solid #e1e5ee;border-radius:8px;font-size:.78rem;cursor:pointer;">
+      <option value="auto">🌓 跟随 DSH</option>
+      <option value="light">☀️ 浅色</option>
+      <option value="dark">🌙 深色</option>
+      <option value="ocean">🌊 深海</option>
+      <option value="purple">🔮 暗紫</option>
+      <option value="forest">🌲 墨绿</option>
+    </select>
+    <button id="back-btn" style="display:none;padding:6px 12px;background:#ffffff;color:#4176e6;border:1px solid #e1e5ee;border-radius:6px;cursor:pointer;font-size:.8rem;" onclick="location.href='/?list=1'">← 返回任务列表</button>
+  </span>
 </div>
 
 <!-- 任务列表 -->
@@ -2366,6 +2376,16 @@ setInterval(refresh, 3000);
       if(t&&t!==cur){sessionStorage.setItem('dsh-scroll-y',scrollY);location.reload();}
     }catch(e){}
   },500);
+})();
+
+// 主题选择器:写入 cookie,0.5s 轮询会发现有效主题变化并自动重载
+(function(){
+  var sel=document.getElementById('theme-sel');if(!sel)return;
+  var m=document.cookie.match(/dash-theme=([\w-]+)/);
+  sel.value=m?m[1]:'auto';
+  sel.addEventListener('change',function(){
+    document.cookie='dash-theme='+sel.value+';path=/;max-age=31536000';
+  });
 })();
 </script>
 </body>
